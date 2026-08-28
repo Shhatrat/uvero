@@ -98,6 +98,32 @@ On your Garmin watch: **Settings → Sensors → Add Sensor → Foot Pod** → i
 
 Open `http://<ESP32-IP>` in a browser. The IP is printed to serial on boot.
 
+The dashboard auto-refreshes every second. Available endpoints:
+
+| Endpoint | Description |
+|----------|-------------|
+| `/` | HTML dashboard — speed, distance, uptime, temperature, BLE clients, UART status, RAM, CPU |
+| `/json` | JSON API — same data as above, machine-readable |
+| `/reset_dist` | Reset distance counter to 0 |
+
+Example `/json` response:
+```json
+{
+  "speed_kmh": 3.5,
+  "distance_m": 142,
+  "uptime_s": 312,
+  "temp_c": 43.2,
+  "ble_clients": 1,
+  "free_heap_kb": 214.3,
+  "cpu_mhz": 240,
+  "uart": {
+    "status": "ok",
+    "packets_total": 1041,
+    "parse_errors": 0
+  }
+}
+```
+
 ---
 
 ## Supported speeds
