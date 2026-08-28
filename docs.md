@@ -274,7 +274,7 @@ Prędkości 3.0+ (17B): klucze różnią się od CP210x w bajt[10].
 | 3.9 | 17B | `06 18 86 00 FE 80 60 1E F8` (wariant B — bajt[8] `80`→`06`) |
 | 4.0 | 17B | `80 06 66 FE 80 1E 78 80 F8` |
 
-Brakuje w LUT: 4.1+ (child lock nie pozwolił testować).
+Brakuje w LUT: 4.1+.
 
 **3.9 ma dwa warianty** — bajt[8] zmienia się między `0x80` i `0x06`. Obydwa dodane do LUT.
 
@@ -357,7 +357,7 @@ Wyświetla: prędkość, dystans, uptime, temperatura, BLE clients, UART status,
 ### Co nie działa / porzucone
 - **FTMS (0x1826)** — nieobsługiwany natywnie przez Fenix 7 dla bieżni. FTMS CIQ app łączy się ale nie subskrybuje NOTIFY. Porzucone na rzecz RSC.
 - **RF 433MHz pilot** — faza 2, jeszcze nie zrobiona
-- **Prędkości 4.1+** — child lock blokuje; nie nagrane
+- **Prędkości 4.1+** — nie nagrane
 
 ### Historia błędów i napraw
 

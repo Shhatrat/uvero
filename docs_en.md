@@ -274,7 +274,7 @@ Speeds 3.0+ (17B): keys differ from CP210x at byte[10].
 | 3.9 | 17B | `06 18 86 00 FE 80 60 1E F8` (variant B — byte[8] `80`→`06`) |
 | 4.0 | 17B | `80 06 66 FE 80 1E 78 80 F8` |
 
-Missing from LUT: 4.1+ (child lock prevented testing).
+Missing from LUT: 4.1+.
 
 **3.9 has two variants** — byte[8] alternates between `0x80` and `0x06`. Both added to the LUT.
 
@@ -357,7 +357,7 @@ Source: [github.com/Shhatrat/uvero](https://github.com/Shhatrat/uvero)
 ### Not Working / Abandoned
 - **FTMS (0x1826)** — not natively supported by Fenix 7 for treadmills. FTMS CIQ app connects but does not subscribe to NOTIFY. Abandoned in favor of RSC.
 - **RF 433MHz remote** — phase 2, not yet implemented
-- **Speeds 4.1+** — child lock prevents testing; not captured
+- **Speeds 4.1+** — not captured
 
 ### Bug History
 

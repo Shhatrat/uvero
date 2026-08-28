@@ -128,7 +128,7 @@ Example `/json` response:
 
 ## Supported speeds
 
-All speeds from **1.1 to 4.0 km/h** are supported (31 LUT entries). Speeds above 4.1 km/h were not captured due to child lock on the test unit.
+All speeds from **1.1 to 4.0 km/h** are supported (31 LUT entries). Speeds above 4.1 km/h were not captured.
 
 ---
 
