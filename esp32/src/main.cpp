@@ -6,6 +6,8 @@
 #include "lut.h"
 #include "translations.h"
 
+#define FIRMWARE_VERSION "1.1"
+
 #define WIFI_SSID "your-network"
 #define WIFI_PASS "your-password"
 
@@ -47,7 +49,7 @@ h1{margin:0 0 20px;font-size:1.4em;color:#aaa;display:flex;align-items:center;ga
 .btn{border:none;border-radius:6px;padding:10px 20px;font-size:1em;cursor:pointer}
 #langBtn{background:#333;color:#aaa;padding:4px 10px;font-size:.75em;border-radius:4px;border:1px solid #555;cursor:pointer}
 </style></head><body>
-<h1>Uvero U1 <button id="langBtn" onclick="toggleLang()">EN</button><small style="font-size:.4em;color:#555;margin-left:auto"><a href="https://github.com/Shhatrat/uvero" style="color:#555">github</a></small></h1>
+<h1>Uvero U1 <span id="ver" style="font-size:.5em;color:#555;font-weight:normal"></span><button id="langBtn" onclick="toggleLang()">EN</button><small style="font-size:.4em;color:#555;margin-left:auto"><a href="https://github.com/Shhatrat/uvero" style="color:#555">github</a></small></h1>
 <div class="grid">
   <div class="card"><div class="label" data-i18n="speed"></div><div class="value" id="spd">--</div><div class="unit">km/h</div></div>
   <div class="card"><div class="label" data-i18n="dist"></div><div class="value" id="dst">--</div><div class="unit">m</div></div>
@@ -74,6 +76,7 @@ function toggleLang(){lang=lang==='pl'?'en':'pl';localStorage.setItem('lang',lan
 applyLang();
 async function r(){
   try{const d=await(await fetch('/json')).json();
+  document.getElementById('ver').textContent='v'+d.version;
   document.getElementById('spd').textContent=d.speed_kmh.toFixed(1);
   document.getElementById('dst').textContent=d.distance_m.toFixed(0);
   const u=d.uptime_s;document.getElementById('upt').textContent=String(Math.floor(u/3600)).padStart(2,'0')+':'+String(Math.floor(u%3600/60)).padStart(2,'0')+':'+String(u%60).padStart(2,'0');
@@ -178,7 +181,7 @@ void setup() {
     dis->createCharacteristic(NimBLEUUID((uint16_t)0x2A29), NIMBLE_PROPERTY::READ)->setValue("Shhatrat");
     dis->createCharacteristic(NimBLEUUID((uint16_t)0x2A24), NIMBLE_PROPERTY::READ)->setValue("U1");
     dis->createCharacteristic(NimBLEUUID((uint16_t)0x2A25), NIMBLE_PROPERTY::READ)->setValue("001");
-    dis->createCharacteristic(NimBLEUUID((uint16_t)0x2A26), NIMBLE_PROPERTY::READ)->setValue("1.1");
+    dis->createCharacteristic(NimBLEUUID((uint16_t)0x2A26), NIMBLE_PROPERTY::READ)->setValue(FIRMWARE_VERSION);
     dis->start();
     NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
     adv->addServiceUUID(NimBLEUUID((uint16_t)0x1814));
@@ -200,6 +203,7 @@ void setup() {
     });
     server.on("/json", HTTP_GET, [](AsyncWebServerRequest* req) {
         JsonDocument doc;
+        doc["version"]      = FIRMWARE_VERSION;
         doc["speed_kmh"]    = round(gSpeedKmh * 10) / 10.0;
         doc["distance_m"]   = round(gDistM * 10) / 10.0;
         doc["uptime_s"]     = (millis() - gStartMs) / 1000;
