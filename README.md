@@ -98,12 +98,13 @@ On your Garmin watch: **Settings → Sensors → Add Sensor → Foot Pod** → i
 
 Open `http://<ESP32-IP>` in a browser. The IP is printed to serial on boot.
 
-The dashboard auto-refreshes every second. Available endpoints:
+The dashboard auto-refreshes every second. Use the **EN/PL** button in the top-left to switch language — preference is saved in `localStorage`. Available endpoints:
 
 | Endpoint | Description |
 |----------|-------------|
 | `/` | HTML dashboard — speed, distance, uptime, temperature, BLE clients, UART status, RAM, CPU |
 | `/json` | JSON API — same data as above, machine-readable |
+| `/i18n.js` | Dashboard translations (sourced from `esp32/src/translations.h`) |
 | `/reset_dist` | Reset distance counter to 0 |
 
 Example `/json` response:
@@ -147,14 +148,15 @@ This collision zone difference is not documented anywhere else for this protocol
 
 ```
 firmware/
-  bootloader.bin   — flash at 0x1000
-  partitions.bin   — flash at 0x8000
-  firmware.bin     — flash at 0x10000 (no WiFi credentials)
+  bootloader.bin      — flash at 0x1000
+  partitions.bin      — flash at 0x8000
+  firmware.bin        — flash at 0x10000 (no WiFi credentials)
 esp32/
   src/
-    main.cpp   — firmware: UART parser, BLE RSC, WiFi dashboard
-    lut.h      — speed lookup table (31 entries, 1.1–4.0 km/h)
+    main.cpp          — firmware: UART parser, BLE RSC, WiFi dashboard
+    lut.h             — speed lookup table (31 entries, 1.1–4.0 km/h)
+    translations.h    — dashboard UI strings (EN/PL); add languages here
   platformio.ini
-docs_en.md     — full protocol docs (English)
-docs.md        — full protocol docs (Polish)
+docs_en.md            — full protocol docs (English)
+docs.md               — full protocol docs (Polish)
 ```

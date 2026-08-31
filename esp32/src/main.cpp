@@ -4,6 +4,7 @@
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include "lut.h"
+#include "translations.h"
 
 #define WIFI_SSID "your-network"
 #define WIFI_PASS "your-password"
@@ -32,10 +33,10 @@ static unsigned long gStartMs   = 0;
 static AsyncWebServer server(80);
 
 static const char HTML_MAIN[] PROGMEM = R"rawhtml(<!DOCTYPE html>
-<html lang="pl"><head><meta charset="UTF-8"><title>Uvero U1</title>
+<html><head><meta charset="UTF-8"><title>Uvero U1</title>
 <style>
 body{font-family:sans-serif;background:#111;color:#eee;margin:0;padding:20px}
-h1{margin:0 0 20px;font-size:1.4em;color:#aaa}
+h1{margin:0 0 20px;font-size:1.4em;color:#aaa;display:flex;align-items:center;gap:12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
 .card{background:#1e1e1e;border-radius:10px;padding:16px;text-align:center}
 .label{font-size:.75em;color:#888;text-transform:uppercase;letter-spacing:.05em}
@@ -43,28 +44,39 @@ h1{margin:0 0 20px;font-size:1.4em;color:#aaa}
 .unit{font-size:.8em;color:#888}
 .ok{color:#4caf50}.timeout{color:#ff9800}.nosig{color:#f44336}
 #st{margin-top:20px;font-size:.8em;color:#555}
+.btn{border:none;border-radius:6px;padding:10px 20px;font-size:1em;cursor:pointer}
+#langBtn{background:#333;color:#aaa;padding:4px 10px;font-size:.75em;border-radius:4px;border:1px solid #555;cursor:pointer}
 </style></head><body>
-<h1>Uvero U1 &nbsp;<small style="font-size:.5em;color:#555"><a href="https://github.com/Shhatrat/uvero" style="color:#555">github</a></small></h1>
+<h1>Uvero U1 <button id="langBtn" onclick="toggleLang()">EN</button><small style="font-size:.4em;color:#555;margin-left:auto"><a href="https://github.com/Shhatrat/uvero" style="color:#555">github</a></small></h1>
 <div class="grid">
-  <div class="card"><div class="label">Prędkość</div><div class="value" id="spd">--</div><div class="unit">km/h</div></div>
-  <div class="card"><div class="label">Dystans</div><div class="value" id="dst">--</div><div class="unit">m</div></div>
-  <div class="card"><div class="label">Uptime</div><div class="value" id="upt">--</div><div class="unit">s</div></div>
-  <div class="card"><div class="label">Temperatura</div><div class="value" id="tmp">--</div><div class="unit">°C</div></div>
-  <div class="card"><div class="label">BLE</div><div class="value" id="ble">--</div><div class="unit">klientów</div></div>
+  <div class="card"><div class="label" data-i18n="speed"></div><div class="value" id="spd">--</div><div class="unit">km/h</div></div>
+  <div class="card"><div class="label" data-i18n="dist"></div><div class="value" id="dst">--</div><div class="unit">m</div></div>
+  <div class="card"><div class="label">Uptime</div><div class="value" id="upt">--</div><div class="unit">hh:mm:ss</div></div>
+  <div class="card"><div class="label" data-i18n="temp"></div><div class="value" id="tmp">--</div><div class="unit">°C</div></div>
+  <div class="card"><div class="label">BLE</div><div class="value" id="ble">--</div><div class="unit" data-i18n="clients"></div></div>
   <div class="card"><div class="label">UART</div><div class="value" id="ust">--</div><div class="unit" id="uinf"></div></div>
-  <div class="card"><div class="label">RAM wolny</div><div class="value" id="ram">--</div><div class="unit">kB</div></div>
+  <div class="card"><div class="label" data-i18n="ram"></div><div class="value" id="ram">--</div><div class="unit">kB</div></div>
   <div class="card"><div class="label">CPU</div><div class="value" id="cpu">--</div><div class="unit">MHz</div></div>
 </div>
 <div style="margin-top:16px">
-  <button onclick="resetDist()" style="background:#c0392b;color:#fff;border:none;border-radius:6px;padding:10px 20px;font-size:1em;cursor:pointer">Reset dystansu</button>
+  <button class="btn" onclick="resetDist()" style="background:#c0392b;color:#fff" data-i18n="reset"></button>
 </div>
-<div id="st">łączenie...</div>
+<div id="st" data-i18n-status="connecting"></div>
+<script src="/i18n.js"></script>
 <script>
+let lang=localStorage.getItem('lang')||'pl';
+function applyLang(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=T[lang][el.dataset.i18n]);
+  document.getElementById('langBtn').textContent=lang==='pl'?'EN':'PL';
+  document.querySelector('[data-i18n-status]').textContent=T[lang].connecting;
+}
+function toggleLang(){lang=lang==='pl'?'en':'pl';localStorage.setItem('lang',lang);applyLang();}
+applyLang();
 async function r(){
   try{const d=await(await fetch('/json')).json();
   document.getElementById('spd').textContent=d.speed_kmh.toFixed(1);
   document.getElementById('dst').textContent=d.distance_m.toFixed(0);
-  document.getElementById('upt').textContent=d.uptime_s;
+  const u=d.uptime_s;document.getElementById('upt').textContent=String(Math.floor(u/3600)).padStart(2,'0')+':'+String(Math.floor(u%3600/60)).padStart(2,'0')+':'+String(u%60).padStart(2,'0');
   document.getElementById('tmp').textContent=d.temp_c.toFixed(1);
   document.getElementById('ble').textContent=d.ble_clients;
   const s=document.getElementById('ust');
@@ -73,8 +85,8 @@ async function r(){
   document.getElementById('uinf').textContent='pkt:'+d.uart.packets_total+' err:'+d.uart.parse_errors;
   document.getElementById('ram').textContent=d.free_heap_kb.toFixed(1);
   document.getElementById('cpu').textContent=d.cpu_mhz;
-  document.getElementById('st').textContent='aktualizacja: '+new Date().toLocaleTimeString();
-  }catch(e){document.getElementById('st').textContent='błąd';}
+  document.getElementById('st').textContent=T[lang].updated+' '+new Date().toLocaleTimeString();
+  }catch(e){document.getElementById('st').textContent=T[lang].error;}
 }
 async function resetDist(){await fetch('/reset_dist');r();}
 r();setInterval(r,1000);
@@ -166,7 +178,7 @@ void setup() {
     dis->createCharacteristic(NimBLEUUID((uint16_t)0x2A29), NIMBLE_PROPERTY::READ)->setValue("Shhatrat");
     dis->createCharacteristic(NimBLEUUID((uint16_t)0x2A24), NIMBLE_PROPERTY::READ)->setValue("U1");
     dis->createCharacteristic(NimBLEUUID((uint16_t)0x2A25), NIMBLE_PROPERTY::READ)->setValue("001");
-    dis->createCharacteristic(NimBLEUUID((uint16_t)0x2A26), NIMBLE_PROPERTY::READ)->setValue("1.0");
+    dis->createCharacteristic(NimBLEUUID((uint16_t)0x2A26), NIMBLE_PROPERTY::READ)->setValue("1.1");
     dis->start();
     NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
     adv->addServiceUUID(NimBLEUUID((uint16_t)0x1814));
@@ -180,6 +192,9 @@ void setup() {
     if (WiFi.status() == WL_CONNECTED)
         Serial.printf("\nhttp://%s\n", WiFi.localIP().toString().c_str());
 
+    server.on("/i18n.js", HTTP_GET, [](AsyncWebServerRequest* req) {
+        req->send_P(200, "application/javascript", TRANSLATIONS_JS);
+    });
     server.on("/", HTTP_GET, [](AsyncWebServerRequest* req) {
         req->send_P(200, "text/html", HTML_MAIN);
     });
