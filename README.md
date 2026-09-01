@@ -106,6 +106,7 @@ The dashboard auto-refreshes every second. Use the **EN/PL** button in the top-l
 | `/json` | JSON API — same data as above, machine-readable |
 | `/i18n.js` | Dashboard translations (sourced from `esp32/src/translations.h`) |
 | `/reset_dist` | Reset distance counter to 0 |
+| `/reset_lubrication` | Reset the lubrication distance counter to 0 |
 
 Example `/json` response:
 ```json
@@ -121,9 +122,29 @@ Example `/json` response:
     "status": "ok",
     "packets_total": 1041,
     "parse_errors": 0
-  }
+  },
+  "total_dist_km": 247.3,
+  "lub_dist_km": 42.1,
+  "lub_warn_km": 150.0,
+  "lub_needs_service": false
 }
 ```
+
+---
+
+## Lubrication reminder
+
+The firmware tracks total belt distance in NVS flash — data survives reboots and firmware updates.
+
+| Metric | Description |
+|--------|-------------|
+| `lub_dist_km` | Distance since last lubrication |
+| `total_dist_km` | Lifetime odometer |
+| `lub_warn_km` | Warning threshold (default: 150 km) |
+
+When `lub_dist_km` reaches `lub_warn_km`, the dashboard card turns orange. After lubricating, hit `/reset_lubrication` or the dashboard button to reset the counter.
+
+Distance is chosen over time because treadmill usage varies widely — belt wear correlates with distance, not calendar time.
 
 ---
 

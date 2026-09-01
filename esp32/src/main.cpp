@@ -3,10 +3,13 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
+#include <Preferences.h>
 #include "lut.h"
 #include "translations.h"
 
-#define FIRMWARE_VERSION "1.1"
+#define FIRMWARE_VERSION "1.2"
+
+#define LUB_WARN_KM 150.0f
 
 #define WIFI_SSID "your-network"
 #define WIFI_PASS "your-password"
@@ -27,12 +30,29 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 // ── State ─────────────────────────────────────────────────────────────────────
 static float         gSpeedKmh  = 0.0f;
 static float         gDistM     = 0.0f;
+static float         gTotalDistM = 0.0f;   // lifetime, z NVS
+static float         gLubDistM   = 0.0f;   // od ostatniego smarowania, z NVS
 static uint32_t      gPktTotal  = 0;
 static uint32_t      gPktErr    = 0;
 static unsigned long gLastPktMs = 0;
 static unsigned long gStartMs   = 0;
+static Preferences   prefs;
 
 static AsyncWebServer server(80);
+
+// ── NVS ───────────────────────────────────────────────────────────────────────
+static void loadPrefs() {
+    prefs.begin("uvero", true);
+    gTotalDistM = prefs.getFloat("total_dist", 0.0f);
+    gLubDistM   = prefs.getFloat("lub_dist", 0.0f);
+    prefs.end();
+}
+static void savePrefs() {
+    prefs.begin("uvero", false);
+    prefs.putFloat("total_dist", gTotalDistM);
+    prefs.putFloat("lub_dist", gLubDistM);
+    prefs.end();
+}
 
 static const char HTML_MAIN[] PROGMEM = R"rawhtml(<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Uvero U1</title>
@@ -45,10 +65,12 @@ h1{margin:0 0 20px;font-size:1.4em;color:#aaa;display:flex;align-items:center;ga
 .value{font-size:2em;font-weight:bold;margin:6px 0 2px}
 .unit{font-size:.8em;color:#888}
 .ok{color:#4caf50}.timeout{color:#ff9800}.nosig{color:#f44336}
+#alert{display:none;background:#e67e22;color:#fff;padding:12px 20px;border-radius:8px;margin-bottom:16px;font-weight:bold;font-size:1em}
 #st{margin-top:20px;font-size:.8em;color:#555}
 .btn{border:none;border-radius:6px;padding:10px 20px;font-size:1em;cursor:pointer}
 #langBtn{background:#333;color:#aaa;padding:4px 10px;font-size:.75em;border-radius:4px;border:1px solid #555;cursor:pointer}
 </style></head><body>
+<div id="alert"></div>
 <h1>Uvero U1 <span id="ver" style="font-size:.5em;color:#555;font-weight:normal"></span><button id="langBtn" onclick="toggleLang()">EN</button><small style="font-size:.4em;color:#555;margin-left:auto"><a href="https://github.com/Shhatrat/uvero" style="color:#555">github</a></small></h1>
 <div class="grid">
   <div class="card"><div class="label" data-i18n="speed"></div><div class="value" id="spd">--</div><div class="unit">km/h</div></div>
@@ -59,9 +81,12 @@ h1{margin:0 0 20px;font-size:1.4em;color:#aaa;display:flex;align-items:center;ga
   <div class="card"><div class="label">UART</div><div class="value" id="ust">--</div><div class="unit" id="uinf"></div></div>
   <div class="card"><div class="label" data-i18n="ram"></div><div class="value" id="ram">--</div><div class="unit">kB</div></div>
   <div class="card"><div class="label">CPU</div><div class="value" id="cpu">--</div><div class="unit">MHz</div></div>
+  <div class="card"><div class="label" data-i18n="totalDist"></div><div class="value" id="tdst">--</div><div class="unit">km</div></div>
+  <div class="card" id="lubCard"><div class="label" data-i18n="lubDist"></div><div class="value" id="ldst">--</div><div class="unit">km</div></div>
 </div>
 <div style="margin-top:16px">
   <button class="btn" onclick="resetDist()" style="background:#c0392b;color:#fff" data-i18n="reset"></button>
+  <button class="btn" onclick="resetLub()" style="background:#e67e22;color:#fff" data-i18n="resetLub"></button>
 </div>
 <div id="st" data-i18n-status="connecting"></div>
 <script src="/i18n.js"></script>
@@ -71,6 +96,8 @@ function applyLang(){
   document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=T[lang][el.dataset.i18n]);
   document.getElementById('langBtn').textContent=lang==='pl'?'EN':'PL';
   document.querySelector('[data-i18n-status]').textContent=T[lang].connecting;
+  const alertEl=document.getElementById('alert');
+  if(alertEl.style.display!=='none'&&alertEl.style.display!=='')alertEl.textContent=T[lang].lubAlert;
 }
 function toggleLang(){lang=lang==='pl'?'en':'pl';localStorage.setItem('lang',lang);applyLang();}
 applyLang();
@@ -88,10 +115,17 @@ async function r(){
   document.getElementById('uinf').textContent='pkt:'+d.uart.packets_total+' err:'+d.uart.parse_errors;
   document.getElementById('ram').textContent=d.free_heap_kb.toFixed(1);
   document.getElementById('cpu').textContent=d.cpu_mhz;
+  document.getElementById('tdst').textContent=d.total_dist_km.toFixed(1);
+  document.getElementById('ldst').textContent=d.lub_dist_km.toFixed(1)+'/'+d.lub_warn_km;
+  const lubCard=document.getElementById('lubCard');
+  const alertEl=document.getElementById('alert');
+  if(d.lub_needs_service){lubCard.style.border='2px solid #ff9800';document.getElementById('ldst').className='value timeout';alertEl.textContent=T[lang].lubAlert;alertEl.style.display='block';}
+  else{lubCard.style.border='';document.getElementById('ldst').className='value';alertEl.style.display='none';}
   document.getElementById('st').textContent=T[lang].updated+' '+new Date().toLocaleTimeString();
   }catch(e){document.getElementById('st').textContent=T[lang].error;}
 }
 async function resetDist(){await fetch('/reset_dist');r();}
+async function resetLub(){await fetch('/reset_lubrication');r();}
 r();setInterval(r,1000);
 </script></body></html>)rawhtml";
 
@@ -164,6 +198,7 @@ static void sendRsc() {
 void setup() {
     Serial.begin(115200);
     gStartMs = millis();
+    loadPrefs();
 
     Serial2.begin(UART_BAUD, SERIAL_8N1, UART_RX_PIN, -1);
 
@@ -203,14 +238,18 @@ void setup() {
     });
     server.on("/json", HTTP_GET, [](AsyncWebServerRequest* req) {
         JsonDocument doc;
-        doc["version"]      = FIRMWARE_VERSION;
-        doc["speed_kmh"]    = round(gSpeedKmh * 10) / 10.0;
-        doc["distance_m"]   = round(gDistM * 10) / 10.0;
-        doc["uptime_s"]     = (millis() - gStartMs) / 1000;
-        doc["temp_c"]       = round(temperatureRead() * 10) / 10.0;
-        doc["ble_clients"]  = NimBLEDevice::getServer()->getConnectedCount();
-        doc["free_heap_kb"] = ESP.getFreeHeap() / 1024.0;
-        doc["cpu_mhz"]      = ESP.getCpuFreqMHz();
+        doc["version"]        = FIRMWARE_VERSION;
+        doc["speed_kmh"]      = round(gSpeedKmh * 10) / 10.0;
+        doc["distance_m"]     = round(gDistM * 10) / 10.0;
+        doc["uptime_s"]       = (millis() - gStartMs) / 1000;
+        doc["temp_c"]         = round(temperatureRead() * 10) / 10.0;
+        doc["ble_clients"]    = NimBLEDevice::getServer()->getConnectedCount();
+        doc["free_heap_kb"]   = ESP.getFreeHeap() / 1024.0;
+        doc["cpu_mhz"]        = ESP.getCpuFreqMHz();
+        doc["total_dist_km"]  = round(gTotalDistM / 100.0f) / 10.0;
+        doc["lub_dist_km"]    = round(gLubDistM / 100.0f) / 10.0;
+        doc["lub_warn_km"]    = LUB_WARN_KM;
+        doc["lub_needs_service"] = (gLubDistM / 1000.0f) >= LUB_WARN_KM;
         JsonObject uart = doc["uart"].to<JsonObject>();
         unsigned long age = gLastPktMs > 0 ? (millis() - gLastPktMs) : 999999;
         uart["status"]        = age < 1000 ? "ok" : age < 10000 ? "timeout" : "no signal";
@@ -221,6 +260,11 @@ void setup() {
     });
     server.on("/reset_dist", HTTP_GET, [](AsyncWebServerRequest* req) {
         gDistM = 0.0f;
+        req->send(200, "text/plain", "ok");
+    });
+    server.on("/reset_lubrication", HTTP_GET, [](AsyncWebServerRequest* req) {
+        gLubDistM = 0.0f;
+        savePrefs();
         req->send(200, "text/plain", "ok");
     });
     server.begin();
@@ -244,7 +288,17 @@ void loop() {
     if (now - lastDistMs >= 100) {
         float dt = (now - lastDistMs) / 1000.0f;
         lastDistMs = now;
-        if (gSpeedKmh > 0) gDistM += (gSpeedKmh / 3.6f) * dt;
+        if (gSpeedKmh > 0) {
+            float delta = (gSpeedKmh / 3.6f) * dt;
+            gDistM      += delta;
+            gTotalDistM += delta;
+            gLubDistM   += delta;
+        }
+        static float lastSavedTotalM = 0.0f;
+        if (gTotalDistM - lastSavedTotalM >= 100.0f) {
+            savePrefs();
+            lastSavedTotalM = gTotalDistM;
+        }
     }
 
     if (now - lastBleMs >= 1000) {

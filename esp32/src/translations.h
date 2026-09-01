@@ -11,6 +11,10 @@ static const char TRANSLATIONS_JS[] PROGMEM = R"js(const T={
     clients:   'klientów',
     ram:       'RAM wolny',
     reset:     'Reset dystansu',
+    totalDist: 'Przebieg total',
+    lubDist:   'Do smarowania',
+    resetLub:  'Reset smarowania',
+    lubAlert:  '⚠ Wymagane smarowanie bieżni!',
     connecting:'łączenie...',
     updated:   'aktualizacja:',
     error:     'błąd'
@@ -22,6 +26,10 @@ static const char TRANSLATIONS_JS[] PROGMEM = R"js(const T={
     clients:   'clients',
     ram:       'Free RAM',
     reset:     'Reset distance',
+    totalDist: 'Total distance',
+    lubDist:   'To lubrication',
+    resetLub:  'Reset lubrication',
+    lubAlert:  '⚠ Treadmill lubrication required!',
     connecting:'connecting...',
     updated:   'updated:',
     error:     'error'
